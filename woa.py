@@ -14,6 +14,7 @@ class WhaleOptimizationQAP:
                 distance_matrix: Matrix representing distances between locations
                 n_whales: Number of search agents (whales)
                 max_iter: Maximum number of iterations
+                n: Number of facilities or Distances
         """
         self.flow = flow_matrix
         self.distance = distance_matrix
@@ -45,13 +46,14 @@ class WhaleOptimizationQAP:
     
     def __bubble_net_attack(self, current_pos: np.ndarray, best_pos: np.ndarray, l: float) -> np.ndarray:
         D = abs(best_pos - current_pos)
-        new_pos = D * np.exp(l) * np.cos(2 * np.pi * l) + best_pos
+        b = 1
+        new_pos = D * np.exp(l * b) * np.cos(2 * np.pi * l) + best_pos
         return np.argsort(new_pos)
     
     def __amend_position(self, position: np.ndarray) -> np.ndarray:
         """Ensure position is a valid permutation."""
         return np.argsort(position)
-    
+   
     def optimize(self) -> Tuple[np.ndarray, float, List[float]]:
         """
         This method it's the Whale Optimization Algorithm.
@@ -68,6 +70,7 @@ class WhaleOptimizationQAP:
         
         # Calculate the fitness of each search agent
         fitness_values = [self.__calculate_fitness(pos) for pos in population]
+        positions_history = [population.copy()]
         
         # X* = the best search agent
         best_idx = np.argmin(fitness_values)
@@ -117,9 +120,10 @@ class WhaleOptimizationQAP:
                     best_fitness = new_fitness
             
             fitness_history.append(best_fitness)
+            positions_history.append(population.copy())
             t += 1
         
-        return best_pos, best_fitness, fitness_history
+        return best_pos, best_fitness, fitness_history, positions_history
         
         
         

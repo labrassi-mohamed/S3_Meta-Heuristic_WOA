@@ -21,6 +21,13 @@ class WhaleOptimizationQAP:
         self.n = len(flow_matrix)
         self.n_whales = n_whales
         self.max_iter = max_iter
+    
+    def _compute_A(self, a: float):
+        r = np.random.uniform(0.0, 1.0, size=1)
+        return (2.0*np.multiply(a, r))- a
+
+    def _compute_C(self):
+        return 2.0 * np.random.uniform(0.0, 1.0, size=1)
         
     def __calculate_fitness(self, solution: np.ndarray) -> float:
         """Calculate the fitness (total cost) of a solution."""
@@ -30,7 +37,7 @@ class WhaleOptimizationQAP:
                 cost += self.flow[i][j] * self.distance[solution[i]][solution[j]]
         return cost
     
-    def __create_random_solution(self) -> np.ndarray:
+    def __create_initial_sols(self) -> np.ndarray:
         """Create a random permutation solution"""
         return np.random.permutation(self.n)
     
@@ -54,19 +61,11 @@ class WhaleOptimizationQAP:
         """Ensure position is a valid permutation."""
         return np.argsort(position)
    
-    def optimize(self) -> Tuple[np.ndarray, float, List[float]]:
-        """
-        This method it's the Whale Optimization Algorithm.
-        
-        Returns:
-            Tuple containing:
-            - Best solution found (permutation)
-            - Best fitness found
-            - History of best fitness values
-        """
+    def optimize(self) -> Tuple[np.ndarray, float, List[float], List[list]]:
+        """ This method it's the Whale Optimization Algorithm. """
         
         # Initialize the whales population Xi (i = 1, 2, ..., n)
-        population = [self.__create_random_solution() for _ in range(self.n_whales)]
+        population = [self.__create_initial_sols() for _ in range(self.n_whales)]
         
         # Calculate the fitness of each search agent
         fitness_values = [self.__calculate_fitness(pos) for pos in population]
@@ -86,9 +85,8 @@ class WhaleOptimizationQAP:
             for i in range(self.n_whales):
                 # Update a, A, C, l, and p
                 a = 2 - t * (2 / self.max_iter)  # a decreases linearly from 2 to 0
-                r = random.random()
-                A = 2 * a * r - a  # Eq.
-                C = 2 * r  # Eq. 
+                A = self._compute_A(a)  
+                C = self._compute_C() 
                 l = random.uniform(-1, 1)  # parameter for spiral
                 p = random.random()  # probability for movement type
             
@@ -125,5 +123,86 @@ class WhaleOptimizationQAP:
         
         return best_pos, best_fitness, fitness_history, positions_history
         
+    def __local_search(self, solution: np.ndarray) -> Tuple[np.ndarray, float]:
+        """2-opt local search improvement."""
+        improved = True
+        current_cost = self.__calculate_fitness(solution)
+        best_solution = solution.copy()
         
+        while improved:
+            improved = False
+            for i in range(self.n - 1):
+                for j in range(i + 1, self.n):
+                    # Try swapping positions i and j
+                    new_solution = best_solution.copy()
+                    new_solution[i], new_solution[j] = new_solution[j], new_solution[i]
+                    new_cost = self.__calculate_fitness(new_solution)
+                    
+                    if new_cost < current_cost:
+                        best_solution = new_solution.copy()
+                        current_cost = new_cost
+                        improved = True
+                        break
+                if improved:
+                    break
+                    
+        return best_solution, current_cost
+    
+    def optimize_with_local_search(self) -> Tuple[np.ndarray, float, List[float], List[list]]:
+        # Initialize population with local search improvement
+        population = []
+        fitness_values = []
+        for _ in range(self.n_whales):
+            solution = self.__create_initial_sols()
+            improved_solution, improved_fitness = self.__local_search(solution)
+            population.append(improved_solution)
+            fitness_values.append(improved_fitness)
+            
+        positions_history = [population.copy()]
         
+        best_idx = np.argmin(fitness_values)
+        best_pos = population[best_idx].copy()
+        best_fitness = fitness_values[best_idx]
+        
+        fitness_history = [best_fitness]
+        t = 0
+        
+        while t < self.max_iter:
+            for i in range(self.n_whales):
+                a = 2 - t * (2 / self.max_iter)
+                r = random.random()
+                A = self._compute_A(a)  
+                C = self._compute_C() 
+                l = random.uniform(-1, 1)
+                p = random.random()
+            
+                if p < 0.5:
+                    if abs(A) < 1:
+                        new_pos = self.__encircling_prey(population[i], best_pos, A, C)
+                    else:
+                        rand_idx = random.randint(0, self.n_whales-1)
+                        random_pos = population[rand_idx]
+                        new_pos = self.__search_for_prey(population[i], random_pos, A, C)
+                else:
+                    new_pos = self.__bubble_net_attack(population[i], best_pos, l)
+                
+                new_pos = self.__amend_position(new_pos)
+                
+                # Apply local search to improve the new position
+                improved_pos, improved_fitness = self.__local_search(new_pos)
+                population[i] = improved_pos
+                fitness_values[i] = improved_fitness
+                
+                if improved_fitness < best_fitness:
+                    best_pos = improved_pos.copy()
+                    best_fitness = improved_fitness
+            
+            fitness_history.append(best_fitness)
+            positions_history.append(population.copy())
+            t += 1
+            
+            # Print progress
+            if t % 10 == 0:
+                print(f"Iteration {t}, Best fitness: {best_fitness}")
+        
+        return best_pos, best_fitness, fitness_history, positions_history

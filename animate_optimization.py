@@ -15,7 +15,7 @@ def animate_optimization(history_positions: List[List[np.ndarray]], bounds: Tupl
     fig, ax = plt.subplots(figsize=(8, 8))
     ax.set_xlim(bounds[0], bounds[1])
     ax.set_ylim(bounds[0], bounds[1])
-    ax.set_title("Whale Optimization with Highlighted Optimum")
+    ax.set_title("Whale Optimization")
     ax.set_xlabel("X-axis")
     ax.set_ylabel("Y-axis")
     
@@ -47,15 +47,3 @@ def animate_optimization(history_positions: List[List[np.ndarray]], bounds: Tupl
 
     anim = FuncAnimation(fig, update, frames=len(history_positions), blit=True, repeat=False)
     plt.show()
-
-
-if __name__ == "__main__":
-    # Simulate positions for 20 iterations with 5 whales
-    iterations = 20
-    whales = 5
-    positions_history = [
-        [np.random.uniform(-10, 10, 2) for _ in range(whales)] for _ in range(iterations)
-    ]
-
-    # Call the animation function
-    animate_optimization(positions_history, bounds=(-10, 10))
